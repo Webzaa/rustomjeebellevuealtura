@@ -18,14 +18,17 @@ import { trackGtmPageView } from './utils/gtm.js';
 
 const getRoute = () => {
   if (typeof window === 'undefined') return 'home';
-  const hash = window.location.hash.toLowerCase();
+  const hash = window.location.hash.toLowerCase().split('?')[0];
   const path = window.location.pathname.toLowerCase();
   if (
     hash === '#privacy' ||
     hash === '#/privacy' ||
     hash === '#privacypolicy' ||
+    hash === '#privacy-policy' ||
     path.endsWith('/privacy-policy') ||
-    path.endsWith('/privacy')
+    path.endsWith('/privacy') ||
+    path.endsWith('/privacy-policy.html') ||
+    path.endsWith('/privacy.html')
   ) {
     return 'privacy';
   }
@@ -33,8 +36,11 @@ const getRoute = () => {
     hash === '#terms' ||
     hash === '#/terms' ||
     hash === '#termsconditions' ||
+    hash === '#terms-conditions' ||
     path.endsWith('/terms-conditions') ||
-    path.endsWith('/terms')
+    path.endsWith('/terms') ||
+    path.endsWith('/terms-conditions.html') ||
+    path.endsWith('/terms.html')
   ) {
     return 'terms';
   }
@@ -44,7 +50,9 @@ const getRoute = () => {
     hash === '#/thank-you' ||
     hash === '#/thankyou' ||
     path.endsWith('/thank-you') ||
-    path.endsWith('/thankyou')
+    path.endsWith('/thankyou') ||
+    path.endsWith('/thank-you.html') ||
+    path.endsWith('/thankyou.html')
   ) {
     return 'thankyou';
   }
@@ -54,7 +62,8 @@ const getRoute = () => {
     hash === '#error' ||
     hash === '#/error' ||
     path.endsWith('/oops') ||
-    path.endsWith('/error')
+    path.endsWith('/error') ||
+    path.endsWith('/oops.html')
   ) {
     return 'oops';
   }
@@ -101,9 +110,11 @@ export default function App() {
     };
   }, []);
 
-  // Track Google Tag Manager pageviews on every route change (home, thankyou, privacy, terms, oops)
+  // Track Google Tag Manager pageview for Home; subpages track their own on mount
   useEffect(() => {
-    trackGtmPageView(route);
+    if (route === 'home') {
+      trackGtmPageView('home');
+    }
   }, [route]);
 
   // Show mobile enquire button only after scrolling past the home/hero view,

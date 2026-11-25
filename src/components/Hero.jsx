@@ -4,10 +4,10 @@ import { asset } from '../lib/assets.js';
 
 const MOBILE_QUERY = '(max-width: 767px)';
 
-const VIDEO_DESKTOP = 'images/new/slider/DeskSlider.mp4';
-const VIDEO_MOBILE = 'images/new/slider/Mobslider02.mp4';
-const POSTER_DESKTOP = 'images/new/slider/deskpreloader.webp';
-const POSTER_MOBILE = 'images/new/slider/mobpreloader.webp';
+const VIDEO_DESKTOP = 'images/new/slider/slider-d.mp4';
+const VIDEO_MOBILE = 'images/new/slider/slider-m.mp4';
+const POSTER_DESKTOP = 'images/new/slider/pre-desk.webp';
+const POSTER_MOBILE = 'images/new/slider/pre-mob.webp';
 
 export default function Hero() {
   const secRef = useRef(null);
@@ -17,6 +17,7 @@ export default function Hero() {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches
   );
+  const [isMahaReraOpen, setIsMahaReraOpen] = useState(false);
 
   // Track viewport changes so the right video is used
   useEffect(() => {
@@ -88,6 +89,45 @@ export default function Hero() {
         />
         {/* <span className="artist-tag">Artist's Impression</span> */}
       </div>
+
+      {/* ================= MAHARERA BUTTON ================= */}
+      <button
+        type="button"
+        onClick={() => setIsMahaReraOpen(true)}
+        className="hero-maharera-btn"
+      >
+        MAHARERA DETAILS
+      </button>
+
+      {/* ================= MAHARERA PANEL ================= */}
+      {isMahaReraOpen && (
+        <div className="hero-maharera-panel">
+          <button
+            type="button"
+            onClick={() => setIsMahaReraOpen(false)}
+            className="hero-maharera-close"
+            aria-label="Close MahaRERA details"
+          >
+            &times;
+          </button>
+          <h4>RUSTOMJEE BELLEVUE</h4>
+          <div className="hero-maharera-body">
+            <div className="hero-maharera-content">
+              <img
+                src={asset('images/new/QR-Code.webp')}
+                alt="Rustomjee Bellevue MahaRERA QR Code"
+                className="hero-maharera-qr"
+              />
+              <p className="hero-maharera-text">
+                <span className="hero-maharera-label">RERA registration number</span>
+                P51700077224
+                <br />
+                Rustomjee Bellevue
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

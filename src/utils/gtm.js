@@ -1,11 +1,22 @@
 /**
  * Google Tag Manager SPA Helper
- * Tracks virtual pageviews and custom events across all routes:
+ * Tracks virtual pageviews and custom events across all JSX pages:
  * Home, Thank You (#thank-you), Privacy Policy (#privacy), Terms (#terms), Oops (#oops)
  */
 
+let lastTrackedKey = '';
+let lastTrackedAt = 0;
+
 export const trackGtmPageView = (route) => {
   if (typeof window === 'undefined') return;
+
+  const now = Date.now();
+  const trackKey = `${route}:${window.location.pathname}${window.location.hash}`;
+  if (trackKey === lastTrackedKey && now - lastTrackedAt < 500) {
+    return;
+  }
+  lastTrackedKey = trackKey;
+  lastTrackedAt = now;
 
   let pageTitle = 'Rustomjee Belle Vue, Kasara | 3.5 & 4.5 BHK Villas with Private Pool';
   let pagePath = '/';

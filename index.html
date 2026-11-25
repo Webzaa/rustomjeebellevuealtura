@@ -34,10 +34,13 @@
   <meta property="og:image" content="./images/new/overview.webp" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="shortcut icon" type="image/x-icon" href="./images/new/favicone.png" />
-  <link rel="preload" as="image" href="./images/new/slider/slider02.jpg" media="(min-width: 768px)"
+  <link rel="preload" as="image" href="./images/new/slider/pre-desk.webp" media="(min-width: 768px)"
     fetchpriority="high" />
-  <link rel="preload" as="image" href="./images/new/slider/slider02mobile.jpg" media="(max-width: 767px)"
+  <link rel="preload" as="image" href="./images/new/slider/pre-mob.webp" media="(max-width: 767px)"
     fetchpriority="high" />
+  <!-- Preload scrub videos so they're ready before user scrolls to them -->
+  <link rel="preload" as="video" type="video/mp4" href="./videos/deskvid_scrub1_scrub.mp4" media="(min-width: 769px)" />
+  <link rel="preload" as="video" type="video/mp4" href="./videos/mobvid_scrub.mp4" media="(max-width: 768px)" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -54,6 +57,9 @@
       style="display:none;visibility:hidden"></iframe></noscript>
   <!-- End Google Tag Manager (noscript) -->
   <div id="root"></div>
+  <!-- MoEngage dataLayer helpers + form progress tracking (classic scripts, must stay in this order) -->
+  <script src="./js/moengage-datalayer.js"></script>
+  <script src="./js/moengage-form-tracking.js"></script>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 

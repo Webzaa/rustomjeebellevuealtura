@@ -19,6 +19,19 @@ const CHAPTERS = [
 const fade = (p, a, b, c, d) =>
   p < a ? 0 : p < b ? (p - a) / (b - a || 1) : p < c ? 1 : p < d ? 1 - (p - c) / (d - c) : 0;
 
+// ── Eagerly fetch the video as a blob so it's fully cached ──
+// This avoids the browser's range-request dance and ensures the
+// entire file is in memory before we start seeking.
+const blobCache = {};
+function prefetchVideoBlob(url) {
+  if (blobCache[url]) return blobCache[url];
+  blobCache[url] = fetch(url)
+    .then((r) => r.blob())
+    .then((blob) => URL.createObjectURL(blob))
+    .catch(() => url); // fallback to network URL on error
+  return blobCache[url];
+}
+
 export default function Experience() {
   const stageRef = useRef(null);
   const videoRef = useRef(null);
@@ -28,6 +41,17 @@ export default function Experience() {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches
   );
+
+  // ── Start prefetching the video blob immediately on mount ──
+  // Don't wait for IntersectionObserver — start downloading right away
+  // so the video is ready by the time the user scrolls to it.
+  const blobUrlRef = useRef(null);
+  useEffect(() => {
+    const videoPath = isMobile ? VIDEO_MOBILE : VIDEO_DESKTOP;
+    prefetchVideoBlob(asset(videoPath)).then((blobUrl) => {
+      blobUrlRef.current = blobUrl;
+    });
+  }, [isMobile]);
 
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_QUERY);
@@ -48,18 +72,92 @@ export default function Experience() {
     if (reduceMotion()) return;
 
     let dur = 0;
-    let target = 0;
-    let queued = false;
     let started = false;
+    let primed = false;
+    let rafId = 0;
 
+    // ── Desktop: direct seek with seeked-queue ──
+    let desktopTarget = 0;
+    let desktopQueued = false;
+
+    const desktopSeek = () => {
+      if (!dur || v.readyState < 1) return;
+      if (v.seeking) { desktopQueued = true; return; }
+      const t = Math.min(Math.max(desktopTarget, 0), dur - 0.04);
+      if (Math.abs(v.currentTime - t) > 0.008) v.currentTime = t;
+    };
+
+    const onSeeked = () => {
+      if (!coarse && desktopQueued) {
+        desktopQueued = false;
+        desktopSeek();
+      }
+    };
+
+    // ── Mobile: rAF lerp loop ──
+    let mobileTarget = 0;
+    let mobileCurrent = 0;
+    const LERP_SPEED = 0.18;
+    const SNAP = 0.008;
+
+    const tickSeek = () => {
+      rafId = requestAnimationFrame(tickSeek);
+      if (!dur) return;
+
+      const diff = mobileTarget - mobileCurrent;
+      if (Math.abs(diff) < SNAP) {
+        mobileCurrent = mobileTarget;
+      } else {
+        mobileCurrent += diff * LERP_SPEED;
+      }
+
+      const t = Math.min(Math.max(mobileCurrent, 0), dur - 0.04);
+      if (!v.seeking && v.readyState >= 2 && Math.abs(v.currentTime - t) > 0.01) {
+        v.currentTime = t;
+      }
+    };
+
+    // ── Unified seek dispatcher ──
+    const seekTo = (time) => {
+      if (coarse) {
+        mobileTarget = time;
+      } else {
+        desktopTarget = time;
+        desktopSeek();
+      }
+    };
+
+    // ── Load the video ──
+    // Use blob URL if available (fully cached in memory → instant seeking).
+    // Otherwise fall back to network URL with preload=auto.
     const start = () => {
       if (started) return;
       started = true;
+      const videoPath = isMobile ? VIDEO_MOBILE : VIDEO_DESKTOP;
+      const networkUrl = asset(videoPath);
+
+      // Get or kick off the blob fetch
+      const blobPromise = prefetchVideoBlob(networkUrl);
+
+      // Set network URL immediately so something starts loading
       v.preload = 'auto';
-      v.src = asset(isMobile ? VIDEO_MOBILE : VIDEO_DESKTOP);
+      v.src = networkUrl;
       v.load();
+
+      // Once the blob is ready, swap to it for instant seeking
+      blobPromise.then((blobUrl) => {
+        if (blobUrl !== networkUrl && v.src !== blobUrl) {
+          blobUrlRef.current = blobUrl;
+          const wasDur = dur;
+          v.src = blobUrl;
+          v.load();
+          // Restore duration if we already had it
+          if (wasDur) dur = wasDur;
+        }
+      });
     };
 
+    // Start loading as soon as the section is even remotely near the viewport
     let io = null;
     if ('IntersectionObserver' in window) {
       io = new IntersectionObserver(
@@ -69,51 +167,60 @@ export default function Experience() {
             io.disconnect();
           }
         },
-        { rootMargin: '200% 0px' }
+        { rootMargin: '400% 0px' } // very aggressive — start loading 4 screens before visible
       );
       io.observe(stage);
     } else {
       start();
     }
 
-    const seek = () => {
-      if (!dur || v.readyState < 1) return;
-      if (v.seeking) { queued = true; return; }
-      const t = Math.min(Math.max(target, 0), dur - 0.04);
-      if (Math.abs(v.currentTime - t) > 0.012) v.currentTime = t;
+    // ── Prime / unlock the video on mobile ──
+    const prime = () => {
+      if (primed) return;
+      const p = v.play();
+      if (p && p.then) {
+        p.then(() => {
+          primed = true;
+          v.pause();
+          if (coarse && !rafId) rafId = requestAnimationFrame(tickSeek);
+        }).catch(() => { });
+      }
     };
 
-    const onSeeked = () => {
-      if (queued) { queued = false; seek(); }
+    const onTouch = () => {
+      if (started && !primed) prime();
     };
+
+    if (coarse) {
+      v.addEventListener('loadeddata', prime, { once: true });
+      document.addEventListener('touchstart', onTouch, { once: true, passive: true });
+      document.addEventListener('touchmove', onTouch, { once: true, passive: true });
+    }
 
     const onMeta = () => {
       dur = Number.isFinite(v.duration) && v.duration > 1 ? v.duration : 0;
-      seek();
+      if (coarse && primed && !rafId && dur > 0) {
+        rafId = requestAnimationFrame(tickSeek);
+      }
+      if (!coarse && dur > 0) desktopSeek();
+    };
+
+    const onLoadedData = () => {
+      if (!dur || dur < 1) {
+        dur = Number.isFinite(v.duration) && v.duration > 1 ? v.duration : 0;
+      }
     };
 
     v.addEventListener('seeked', onSeeked);
     v.addEventListener('loadedmetadata', onMeta);
+    v.addEventListener('loadeddata', onLoadedData);
     if (v.readyState >= 1) onMeta();
-
-    const prime = () => {
-      const p = v.play();
-      if (p && p.then) {
-        p.then(() => { v.pause(); seek(); }).catch(() => {});
-      }
-    };
-    const onTouch = () => { if (started) prime(); };
-    if (coarse) {
-      v.addEventListener('loadeddata', prime, { once: true });
-      document.addEventListener('touchstart', onTouch, { once: true, passive: true });
-    }
 
     const last = CHAPTERS.map(() => -1);
     let lastCue = -1;
 
     const apply = (p) => {
-      target = p * dur;
-      seek();
+      seekTo(p * dur);
 
       CHAPTERS.forEach((c, i) => {
         const o = Math.round(fade(p, c.a, c.b, c.c, c.d) * 100) / 100;
@@ -139,7 +246,7 @@ export default function Experience() {
       start: 'top top',
       end: () => '+=' + window.innerHeight * (coarse ? 5 : 9),
       pin: true,
-      scrub: coarse ? 0.5 : 0.35,
+      scrub: coarse ? 0.6 : 0.8,
       invalidateOnRefresh: true,
       refreshPriority: 1,
       onUpdate: (self) => apply(self.progress),
@@ -150,12 +257,15 @@ export default function Experience() {
     apply(0);
 
     return () => {
+      if (rafId) cancelAnimationFrame(rafId);
       st.kill();
       io && io.disconnect();
       v.removeEventListener('seeked', onSeeked);
       v.removeEventListener('loadedmetadata', onMeta);
+      v.removeEventListener('loadeddata', onLoadedData);
       v.removeEventListener('loadeddata', prime);
       document.removeEventListener('touchstart', onTouch);
+      document.removeEventListener('touchmove', onTouch);
     };
   }, [isMobile]);
 
@@ -163,7 +273,7 @@ export default function Experience() {
     <section id="experience">
       <div id="villa" style={{ position: 'absolute', top: 0 }}></div>
       <div className="sec-head-center1">
-      {/* <p className="vc__eyebrow">THE VILLA EXPERIENCE</p> */}
+        {/* <p className="vc__eyebrow">THE VILLA EXPERIENCE</p> */}
         <h2>YOUR VILLA IN THE HILLS.</h2>
       </div>
 

@@ -10,6 +10,10 @@ dist
 # Backup and export folders
 bellevuenew/
 bellevuenew1/
+admin/
+api/
+public/admin/
+public/api/
 villa-alturav*/
 rustomjeebellevuealtura/
 

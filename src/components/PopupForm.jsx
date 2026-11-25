@@ -3,6 +3,7 @@ import intlTelInput from 'intl-tel-input';
 import { getMarketingData, detectDevice } from '../lib/marketing.js';
 import { cleanPhoneNumber, validatePhoneNumber } from '../utils/phoneValidation.js';
 import { pushGtmEvent } from '../utils/gtm.js';
+import { trackLeadSubmitted } from '../utils/moengage.js';
 
 const captureMarketingParams = getMarketingData;
 
@@ -261,6 +262,18 @@ export default function PopupForm({ onSuccess }) {
         project: 'Rustomjee Belle Vue - Villa Altura',
       });
 
+      // MoEngage: lead_submitted (no OTP step on this page, so fired after the API confirms the save)
+      trackLeadSubmitted({
+        countryCode: payload.countrycode,
+        mobile: payload.mobile,
+        name,
+        email,
+        formName: 'popup_form',
+        formLocation: 'modal',
+        formId: 'booking_popup_modal',
+        leadId: result && result.lead_id,
+      });
+
       setMsgType('success');
       setMsg('Thank you for your interest! Our team will contact you shortly to schedule your private villa preview.');
       f.reset();
@@ -295,6 +308,8 @@ export default function PopupForm({ onSuccess }) {
   return (
     <form
       id="f2"
+      data-form-id="booking_popup_modal"
+      data-form-name="popup_form"
       ref={formRef}
       noValidate
       onSubmit={onSubmit}

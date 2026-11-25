@@ -5,6 +5,7 @@ import { asset } from '../lib/assets.js';
 import { getMarketingData, detectDevice } from '../lib/marketing.js';
 import { cleanPhoneNumber, validatePhoneNumber } from '../utils/phoneValidation.js';
 import { pushGtmEvent } from '../utils/gtm.js';
+import { trackLeadSubmitted } from '../utils/moengage.js';
 
 const captureMarketingParams = getMarketingData;
 
@@ -287,6 +288,18 @@ export default function ContactForm() {
         project: 'Rustomjee Belle Vue - Villa Altura',
       });
 
+      // MoEngage: lead_submitted (no OTP step on this page, so fired after the API confirms the save)
+      trackLeadSubmitted({
+        countryCode: payload.countrycode,
+        mobile: payload.mobile,
+        name,
+        email,
+        formName: 'contact_form',
+        formLocation: 'body',
+        formId: 'contact_form_body',
+        leadId: result && result.lead_id,
+      });
+
       setMsgType('success');
       setMsg('Thank you for your interest! Our team will contact you shortly to schedule your private villa preview.');
       f.reset();
@@ -339,7 +352,7 @@ export default function ContactForm() {
             <span className="enq-preview-sparkle">✦</span>
             <span>Private villa previews by appointment.</span>
           </div>
-          <form id="f" ref={formRef} noValidate onSubmit={onSubmit} onInput={onInput} className="contactform">
+          <form id="f" data-form-id="contact_form_body" data-form-name="contact_form" ref={formRef} noValidate onSubmit={onSubmit} onInput={onInput} className="contactform">
             <div className={`f-field${errors.name ? ' has-error' : ''}`}>
               <input
                 name="name"
