@@ -4,8 +4,8 @@ import { asset } from '../lib/assets.js';
 
 const MOBILE_QUERY = '(max-width: 767px)';
 
-const VIDEO_DESKTOP = 'images/new/slider/slider-d.mp4';
-const VIDEO_MOBILE = 'images/new/slider/slider-m.mp4';
+const VIDEO_DESKTOP = 'images/new/slider/desk-slider.mp4';
+const VIDEO_MOBILE = 'images/new/slider/mobile-slider.mp4';
 const POSTER_DESKTOP = 'images/new/slider/pre-desk.webp';
 const POSTER_MOBILE = 'images/new/slider/pre-mob.webp';
 
